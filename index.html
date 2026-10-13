@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Placar Passa ou Repassa - Micro:bit</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; }
+    button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; margin-top: 20px; background: #28a745; color: white; border: none; border-radius: 8px; }
+    .placar { display: flex; justify-content: center; gap: 40px; margin-top: 50px; }
+    .time { border: 4px solid #444; padding: 30px; border-radius: 15px; width: 250px; }
+    .time-a { border-color: #28a745; background: #062b11; }
+    .time-b { border-color: #ffc107; background: #382b03; }
+    .pontos { font-size: 5rem; font-weight: bold; margin: 20px 0; }
+    .status { margin-top: 30px; font-size: 1.5rem; color: #aaa; }
+    .revelador { font-size: 2rem; font-weight: bold; margin-top: 20px; height: 50px; }
+  </style>
+</head>
+<body>
+
+  <h1>PASSA OU REPASSA - MICRO:BIT</h1>
+  <button id="btnConectar">🔌 Conectar Micro:bit (USB)</button>
+  
+  <div class="status" id="status">Status: Aguardando Conexão USB</div>
+  <div class="revelador" id="quemBateu"></div>
+
+  <div class="placar">
+    <div class="time time-a">
+      <h2>EQUIPE A</h2>
+      <div class="pontos" id="placarA">0</div>
+    </div>
+    <div class="time time-b">
+      <h2>EQUIPE B</h2>
+      <div class="pontos" id="placarB">0</div>
+    </div>
+  </div>
+
+  <script>
+    let pontosA = 0;
+    let pontosB = 0;
+
+    document.getElementById('btnConectar').addEventListener('click', async () => {
+      try {
+        // Solicita ao usuário selecionar a porta USB do Micro:bit
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        document.getElementById('status').innerText = "Status: Micro:bit Conectado!";
+        document.getElementById('btnConectar').style.display = "none";
+
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        const reader = textDecoder.readable.getReader();
+
+        let buffer = "";
+
+        // Loop de leitura da porta USB
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            buffer += value;
+            let lines = buffer.split("\n");
+            buffer = lines.pop(); // Mantém o pedaço incompleto no buffer
+
+            for (let line of lines) {
+              tratarMensagem(line.trim());
+            }
+          }
+        }
+      } catch (error) {
+        alert("Erro ao conectar à porta USB: " + error);
+      }
+    });
+
+    function tratarMensagem(msg) {
+      const displayQuemBateu = document.getElementById('quemBateu');
+      
+      if (msg === "RESET") {
+        displayQuemBateu.innerText = "🔔 RODADA LIBERADA!";
+        displayQuemBateu.style.color = "#00d2ff";
+      } else if (msg === "A") {
+        pontosA++;
+        document.getElementById('placarA').innerText = pontosA;
+        displayQuemBateu.innerText = "⚡ EQUIPE A BATEU PRIMEIRO!";
+        displayQuemBateu.style.color = "#28a745";
+      } else if (msg === "B") {
+        pontosB++;
+        document.getElementById('placarB').innerText = pontosB;
+        displayQuemBateu.innerText = "⚡ EQUIPE B BATEU PRIMEIRO!";
+        displayQuemBateu.style.color = "#ffc107";
+      }
+    }
+  </script>
+</body>
+</html>
